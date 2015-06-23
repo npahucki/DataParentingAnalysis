@@ -8,6 +8,7 @@ http.globalAgent.maxSockets = 50;
 var simMap={};
 var similarity=0;
 var errs=[];
+var titles=[];
 var completed=["${He}'s born and is beautiful!"];
 var num=0;
 
@@ -21,8 +22,7 @@ function findMostSimilar(achievement){
 	  var params= {'operation':'api','phrase1':customTitle,'phrase2':standardTitle}
 	  var sim=0;
 	  request({url:url, qs:params}, function(err, response, body) {
-      numProcessed++;
-      console.log("Checked against StandardMilestone: " +numProcessed)
+      console.log("Checked against StandardMilestone: " + ++numProcessed)
   		if(err) { console.log(err);errs.push(err);}
   		if (Number(body)){
   			sim=Number(body)
@@ -35,11 +35,12 @@ function findMostSimilar(achievement){
         simObject.set("title2",standardTitle)
         simObject.set("similarityScore",sim)
         console.log("**********Saved: "+ ++num+"**********")
-        console.log(customTitle)
+        console.log(customTitle+"----"+standardTitle);
         simObject.save();
       }
-      if(numProcessed==453){
+      if(numProcessed==901){
       console.log("**********Total Processed: "+completed.length+"**********")
+      console.log(completed)
       getNextMilestone()
       }
     })
@@ -54,12 +55,23 @@ query.equalTo("isSkipped", false);
 query.equalTo("isPostponed", false);
 query.descending("customTitle");
 var querySimilarities= new Parse.Query("Similarities");
-query.doesNotMatchKeyInQuery("customTitle","title1",querySimilarities)
+querySimilarities.each(function(similarityObject){
+  var title=similarityObject.get("title1")
+  if (!(title in titles)){
+    titles.push(title)
+  }
+}).then(function(){
+  query.notContainedIn("customTitle",titles)
+  console.log("Start")
+  console.log(titles)
+  getNextMilestone();
+})
+
 function getNextMilestone(){
   query.notContainedIn("customTitle",completed);
   query.first(function(achievement) {
     if(!(achievement)){
-      console.log("No more achievements to process.  Script complete.")
+      console.log("No more achievements to process. Script complete.")
     }
     else{
       completed.push(achievement.get("customTitle"))
@@ -78,6 +90,3 @@ function getNextMilestone(){
     }
   })
 }
-
-console.log("Start")
-getNextMilestone();
