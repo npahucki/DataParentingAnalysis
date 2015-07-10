@@ -1,0 +1,5 @@
+select title, array_agg(completiondays) as arrayofdays, round(avg(completiondays)) as average, round(stddev(completiondays)) as stddev, round(avg(completiondays))+2*round(stddev(completiondays)) as calculatedrangehigh, round(avg(completiondays))-2*round(stddev(completiondays)) as calculatedrangelow, count(completiondays) as datapoints
+from standardmilestones, milestoneachievements
+where standardmilestones.id = milestoneachievements.standardmilestoneid and not milestoneachievements.isskipped and not milestoneachievements.ispostponed
+group by title
+order by count(completiondays) desc

@@ -1,0 +1,8 @@
+/*Correlation between two standard milestones*/
+create or replace function get_corr(name1 text, name2 text) returns double precision AS $$
+select corr(i.completiondays,j.completiondays)
+from milestoneachievements i, milestoneachievements j
+where i.babyid=j.babyid and i.standardmilestoneid=name1 and j.standardmilestoneid=name2
+$$ Language SQL;
+
+select get_corr('DKbM0H9I1YrbTM6BN1ZHOQ','CZefIsAsKx') as correlation	

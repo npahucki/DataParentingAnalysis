@@ -1,0 +1,9 @@
+select t.tag, round(avg(idx(subquery.arrayofdays,completiondays)::double precision/icount(subquery.arrayofdays) * 100)) as percentile
+from milestoneachievements ma, standardmilestones sm, babies b, tags t, standardmilestonetags smt, (select standardmilestoneid, sort_desc(array_agg(completiondays)::int[]) as arrayofdays
+from milestoneachievements ma1
+where completiondays is not null and not ma1.isskipped and not ma1.ispostponed
+group by standardmilestoneid
+order by count(completiondays) desc) as subquery
+where b.id=ma.babyid and ma.standardmilestoneid=sm.id and subquery.standardmilestoneid=sm.id and sm.id=smt.standardmilestoneid and t.id=smt.tagid and b.name='Thomas'
+group by t.tag
+order by percentile
