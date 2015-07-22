@@ -1,0 +1,38 @@
+{
+  "name": "DadsBackups",
+  "version": "1.0.0",
+  "description": "Datadads Backups",
+  "keywords": [
+    "DataDads"
+  ],
+  "author": {
+    "name": "Julián Porta",
+    "email": "julian@porta.sh",
+    "url": "http://julian.porta.sh/"
+  },
+  "homepage": "http://julian.porta.sh/",
+  "repository": {
+    "type": "git",
+    "url": "ssh://547c7a3fecb8d460b30000ba@dadsbackups-datadads.rhcloud.com/~/git/dadsbackups.git/"
+  },
+  "engines": {
+    "node": ">= 0.6.0",
+    "npm": ">= 1.0.0"
+  },
+  "dependencies": {
+    "express": "~3.4.4",
+    "flat": "^1.3.0",
+    "jsesc": "^0.5.0",
+    "localStorage": "~1.0.3",
+    "mailgun": "~0.5.0",
+    "pg": "^4.4.0",
+    "pg-copy-streams": "^0.3.0",
+    "s3": "~4.3.1",
+    "underscore": "^1.7.0",
+    "xmlhttprequest": "~1.6.0"
+  },
+  "devDependencies": {},
+  "bundleDependencies": [],
+  "private": true,
+  "main": "server.js"
+}
