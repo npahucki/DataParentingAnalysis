@@ -1,5 +1,5 @@
 /***
- * Module to abstract backing up Parse tables to S3
+ * Module to abstract pulling all tables from Parse.com
  *
  */
 
@@ -13,44 +13,22 @@ var env = process.env;
 
 Parse.Cloud.useMasterKey();
 
-
 var _ = require('underscore');
-var s3 = require('s3');
 var fs = require('fs');
 var flat = require('flat');
 var arr2csv = require('../lib/arr2csv.js');
 
-
 var sqlMapping = require('../lib/sql_mapping.js');
-var s3Client = s3.createClient({
-    maxAsyncS3: 20,     // this is the default
-    s3RetryCount: 3,    // this is the default
-    s3RetryDelay: 1000, // this is the default
-    multipartUploadThreshold: 209715200, // this is the default (200 MB)
-    multipartUploadSize: 157286400, // this is the default (150 MB)
-    s3Options: {
-        accessKeyId: env['S3_CLIENT_KEY'],
-        secretAccessKey: env['S3_SECRET_KEY']
-        //Backup to op-backups/dadsbackups
-    }
-});
-
-var today = new Date().toISOString().
-        replace(/T/, ' ').
-        replace(/\..+/, '').
-        replace(/\s\d{2}:\d{2}:\d{2}/,'');
-
 
 var results = [];
 
 module.exports.perform = function(){
     var promise = new Parse.Promise();
     if (checkStatus() == "ready"){
-        //promise.resolve( main() );
         return main();
     }
     else{
-        promise.reject("Missing env variables, maybe? note that we need these: env['S3_CLIENT_KEY'] && env['S3_SECRET_KEY'] && env['PARSE_API_KEY'] && env['PARSE_JS_KEY'] && env['PARSE_MASTER_KEY'] && env['MAILGUN_KEY']");
+        promise.reject("Missing env variables, maybe? note that we need these: env['PARSE_API_KEY'] && env['PARSE_JS_KEY'] && env['PARSE_MASTER_KEY'] && env['MAILGUN_KEY']");
     }
     return promise;
 }
@@ -63,8 +41,6 @@ function checkStatus(){
      */
     var status = "ready";
     if ( typeof(
-        env['S3_CLIENT_KEY'] &&
-        env['S3_SECRET_KEY'] &&
         env['PARSE_API_KEY'] &&
         env['PARSE_JS_KEY'] &&
         env['PARSE_MASTER_KEY'] &&
@@ -91,9 +67,7 @@ function main(){
     });
 
     promise.then( function(){
-        //console.log('Backup Complete');
-        return notify("Backup Complete", results, "");
-
+        console.log('Backup Complete');
     }, function(error){
         //console.log('Backup failed miserably ' + JSON.stringify(error));
         return notify("Backup failed miserably", error, "");
@@ -109,14 +83,7 @@ function main(){
  */
 function backupTable(table) {
     return retrieveData(table).then(function (fileInfo) {
-        return Parse.Promise.when(transferFile(fileInfo.jsonFile), transferFile(fileInfo.csvFile))
-            .then(function () {
-                Parse.Promise.when(deleteFile(fileInfo.jsonFile));
-            })
-            .then(function () {
-                Parse.Promise.when(addFileToResults(fileInfo.jsonFile), addFileToResults(fileInfo.csvFile));
-            });
-
+        return Parse.Promise.when(addFileToResults(fileInfo.jsonFile), addFileToResults(fileInfo.csvFile));
     });
 }
 
@@ -141,8 +108,6 @@ function retrieveData(table){
 
     var jsonFile = writeFile(table + '.json', '{"results": [');
     var csvFile = writeFile(table + '.csv', arr2csv.toString(csv_cols));
-
-
     var separator = "";
 
     return new Parse.Query(fieldName).each(function(obj){
@@ -212,54 +177,6 @@ function appendFile(fileName, bits){
     return promise;
 }
 
-
-/***
- *
- * @param fileName
- * @returns Parse.Promise
- */
-function deleteFile(fileName){
-    var promise = new Parse.Promise();
-    fs.unlink(fileName, function (err) {
-        if (err){
-            promise.reject(err);
-        }
-        else{
-            promise.resolve(fileName);
-        }
-    });
-    return promise;
-}
-/***
- *
- * @param table
- * @returns Parse.Promise
- */
-function transferFile( fileName ){
-    var promise = new Parse.Promise();
-    var params = {
-        localFile: fileName,
-        s3Params: {
-            Bucket: "op-backups",
-            Key: String('dadsbackups/' + env['PARSE_API_KEY'] + '/' + today + '/' + fileName)
-        }
-    };
-    //use promise.resolve and promise.reject
-    // var uploader = s3Client.uploadFile(params);
-    // uploader.on('error', function(err) {
-    //     console.log("Unable to upload "+ fileName);
-    //     promise.reject(String("unable to upload: " + err.stack));
-    // });
-    // uploader.on('end', function() {
-    //     console.log("Uploaded "+ fileName);
-    //     promise.resolve(fileName);
-    // });
-    console.log("Uploaded "+ fileName);
-    promise.resolve(fileName);
-    return promise;
-
-}
-
 /***
  *
  * @param table
@@ -283,9 +200,7 @@ function tableToFile(table){
  * @return Parse.promise
  */
 function notify(title, object, mimeType) {
-
     var Mailgun = require('mailgun').Mailgun;
-
     var mg = new Mailgun(env['MAILGUN_KEY']);
     mg.sendText('app@alerts.dataparenting.com', 'cooper.sloan@gmail.com',
         "[DP_ALERT]:" + title,
@@ -294,6 +209,5 @@ function notify(title, object, mimeType) {
         function(err) { //replace error message
             if (err) console.log("Email couldn't be sent. This is the error: " + err);
         });
-
 };
 
