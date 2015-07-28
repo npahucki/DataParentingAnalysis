@@ -1,6 +1,7 @@
 /***
  * Module to abstract pulling all tables from Parse.com
- *
+ * module.exports.perform returns a Parse.Promise which resolves when all of the
+ * tables are backed up in the /tmp directory
  */
 
 var env = process.env;
@@ -21,6 +22,11 @@ var arr2csv = require('../lib/arr2csv.js');
 var sqlMapping = require('../lib/sql_mapping.js');
 
 var results = [];
+var today = new Date().toISOString().
+        replace(/T/, ' ').
+        replace(/\..+/, '').
+        replace(/\s\d{2}:\d{2}:\d{2}/,'');
+var pathToBackupDir="/tmp/parse-backup-for-"+today
 
 module.exports.perform = function(){
     var promise = new Parse.Promise();
@@ -57,19 +63,55 @@ function checkStatus(){
  */
 function main(){
     var tables = sqlMapping.tables();
-    var promise = Parse.Promise.as();
-
-    _.each(tables, function( table ){
-        promise = promise.then(function() {
-            console.log("Starting Backup for " + table);
-            return backupTable(table);
-        });
-    });
-
-    promise.then( function(){
+    var promise = new Parse.Promise();
+    var promises=[];
+    var beginBackup=false;
+    if(!(fs.existsSync(pathToBackupDir))){
+        console.log("Could not find backup directory, creating a new one and starting backup")
+        fs.mkdirSync(pathToBackupDir)
+        beginBackup=true
+    }
+    else{
+        console.log("Backup directory exists, checking for files")
+        var files=fs.readdirSync(pathToBackupDir).sort();
+        if(files.length!=0){
+            _.each(files,function(file){
+                if(file.indexOf("~")>-1){
+                    console.log("Files currently being written, wait your turn")
+                }
+            })
+            var necessaryFiles=[]
+            _.each(tables, function(table){
+                necessaryFiles.push(table+".csv",table+".json") 
+            })
+            if(necessaryFiles.sort().join(',')===files.join(',')){
+                console.log("We have a full pok\xE9dex")
+            }
+            else{
+                console.log("Missing some file")
+            }
+        }
+        else{
+            console.log("Directory is empty :( Begin backup")
+            beginBackup=true
+        }
+    }
+    if(beginBackup){
+        _.each(tables, function( table ){
+            fs.writeFileSync(pathToBackupDir+"/"+table+".~", "Lock file for "+table)
+            var prom=backupTable(table);
+            promises.push(prom)
+            prom.then(function(){
+                console.log("Finished backup for "+ table)
+                fs.unlinkSync(pathToBackupDir+"/"+table+".~")
+            })
+        })
+    }
+    Parse.Promise.when(promises).then( function(){
         console.log('Backup Complete');
+        promise.resolve();
     }, function(error){
-        //console.log('Backup failed miserably ' + JSON.stringify(error));
+        console.log('Backup failed miserably ' + JSON.stringify(error));
         return notify("Backup failed miserably", error, "");
     });
     return promise;
@@ -155,7 +197,7 @@ function toCsv(obj, table){
  * @returns fileName
  */
 function writeFile(fileName, bits){
-    fs.writeFileSync(fileName, bits);
+    fs.writeFileSync(pathToBackupDir+"/"+fileName, bits);
     return fileName;
 }
 /***
@@ -166,7 +208,7 @@ function writeFile(fileName, bits){
 function appendFile(fileName, bits){
     var promise = new Parse.Promise();
 
-    fs.appendFile(fileName, bits, function(err){
+    fs.appendFile(pathToBackupDir+"/"+fileName, bits, function(err){
         if (err){
             promise.reject(err);
         }

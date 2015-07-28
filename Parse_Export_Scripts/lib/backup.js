@@ -82,7 +82,7 @@ function checkStatus(){
 function main(){
     var tables = sqlMapping.tables();
     var promise = Parse.Promise.as();
-
+    var promises=[]
     _.each(tables, function( table ){
         promise = promise.then(function() {
             console.log("Starting Backup for " + table);

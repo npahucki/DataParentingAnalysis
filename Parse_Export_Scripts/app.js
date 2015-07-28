@@ -19,19 +19,19 @@ var env = process.env;
 
 //Test, just Parse.com download
 //var pull_tables_from_parse = require('./lib/pull_tables_from_parse.js');
-//pull_tables_from_parse.perform();
+//pull_tables_from_parse.perform()
 
 //Test, just s3 upload from local files
 //var upload_to_s3= require("./lib/upload_to_s3")
 //upload_to_s3.perform();
 
 //Test, just postgreSQL upload
-//var file_import = require('./lib/file_import.js');
-//file_import.perform();
+var file_import = require('./lib/file_import.js');
+file_import.perform();
 
 //Test, clear files
-var clear_files=require('./lib/clear_files')
-clear_files.perform();
+//var clear_files=require('./lib/clear_files')
+//clear_files.perform();
 
 /*
 var promise = Parse.Promise.as();

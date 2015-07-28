@@ -5,14 +5,12 @@
 
 var env = process.env;
 
-
-
 var _ = require('underscore');
 var s3 = require('s3');
 var fs = require('fs');
 var flat = require('flat');
 var arr2csv = require('../lib/arr2csv.js');
-
+var pull_tables_from_parse = require('./pull_tables_from_parse.js');
 
 var sqlMapping = require('../lib/sql_mapping.js');
 var s3Client = s3.createClient({
@@ -32,7 +30,7 @@ var today = new Date().toISOString().
         replace(/T/, ' ').
         replace(/\..+/, '').
         replace(/\s\d{2}:\d{2}:\d{2}/,'');
-
+var pathToBackupDir="/tmp/parse-backup-for-"+today
 
 var results = [];
 
@@ -72,26 +70,24 @@ function checkStatus(){
  * @return Parse.Promise
  */
 function main(){
-    var dir = __dirname.substring(0, __dirname.lastIndexOf('/'));
-    var tables = fs.readdirSync(dir);
-    tables=_.filter(tables, function(fileName){
-        return (fileName.split('.').pop()=="json" || fileName.split('.').pop()=="csv") && fileName!="package.json"
-    })
-    var promise=new Parse.Promise;
-    var promises=[]
-    console.log("Starting Backup for " + tables);
-    _.each(tables, function( table ){
-        promises.push(transferFile(table));
-    });
+    pull_tables_from_parse.perform().then(function(){
+        var tables = fs.readdirSync(pathToBackupDir);
+        var promise=new Parse.Promise;
+        var promises=[]
+        console.log("Starting Backup");
+        _.each(tables, function( table ){
+            promises.push(transferFile(table));
+        });
 
-    Parse.Promise.when(promises).then(function(){
-        console.log("Backup complete!")
-        promise.resolve();
-    }, function(error){
-        console.log('Backup failed miserably ' + JSON.stringify(error));
-        return notify("Backup failed miserably", error, "");
+        Parse.Promise.when(promises).then(function(){
+            console.log("Backup complete!")
+            promise.resolve();
+        }, function(error){
+            console.log('Backup failed miserably ' + JSON.stringify(error));
+            return notify("Backup failed miserably", error, "");
+        });
+        return promise;
     });
-    return promise;
 }
 
 
@@ -101,7 +97,7 @@ function main(){
  * @returns Parse.Promise
  */
 function transferFile( fileName ){
-    var path=__dirname.substring(0, __dirname.lastIndexOf('/'))+"/"+fileName
+    var path=pathToBackupDir+"/"+fileName
     var promise = new Parse.Promise();
     var params = {
         localFile: path,
@@ -128,9 +124,7 @@ function transferFile( fileName ){
  * @return Parse.promise
  */
 function notify(title, object, mimeType) {
-
     var Mailgun = require('mailgun').Mailgun;
-
     var mg = new Mailgun(env['MAILGUN_KEY']);
     mg.sendText('app@alerts.dataparenting.com', 'cooper.sloan@gmail.com',
         "[DP_ALERT]:" + title,
@@ -139,6 +133,5 @@ function notify(title, object, mimeType) {
         function(err) { //replace error message
             if (err) console.log("Email couldn't be sent. This is the error: " + err);
         });
-
 };
 
