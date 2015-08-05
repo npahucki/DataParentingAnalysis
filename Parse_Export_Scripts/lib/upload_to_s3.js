@@ -20,8 +20,8 @@ var s3Client = s3.createClient({
     multipartUploadThreshold: 209715200, // this is the default (200 MB)
     multipartUploadSize: 157286400, // this is the default (150 MB)
     s3Options: {
-        accessKeyId: 'AKIAIBY43TYP7CVAVFMA',
-        secretAccessKey: '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'
+        accessKeyId: env['S3_CLIENT_KEY'],
+        secretAccessKey: env['S3_SECRET_KEY']
         //Backup to op-backups/dadsbackups
     }
 });
@@ -60,7 +60,7 @@ function checkStatus(){
         env['PARSE_MASTER_KEY'] &&
         env['MAILGUN_KEY']) === 'undefined' ){
         
-        //status = "dont";
+        status = "dont";
     }
     return String(status);
 }
@@ -74,7 +74,7 @@ function main(){
         var tables = fs.readdirSync(pathToBackupDir);
         var promise=new Parse.Promise;
         var promises=[]
-        console.log("Starting Backup");
+        console.log("Starting upload to S3");
         _.each(tables, function( table ){
             promises.push(transferFile(table));
         });
@@ -84,9 +84,11 @@ function main(){
             promise.resolve();
         }, function(error){
             console.log('Backup failed miserably ' + JSON.stringify(error));
-            return notify("Backup failed miserably", error, "");
+            promise.reject(error);
         });
         return promise;
+    }, function(err){
+        console.log(err)
     });
 }
 
@@ -117,21 +119,3 @@ function transferFile( fileName ){
     });
     return promise;
 }
-
-
-/***
- *
- * @return Parse.promise
- */
-function notify(title, object, mimeType) {
-    var Mailgun = require('mailgun').Mailgun;
-    var mg = new Mailgun(env['MAILGUN_KEY']);
-    mg.sendText('app@alerts.dataparenting.com', 'cooper.sloan@gmail.com',
-        "[DP_ALERT]:" + title,
-        typeof object === 'string' ? object : JSON.stringify(object,null,4),
-        'noreply@alerts.dataparenting.com', {},
-        function(err) { //replace error message
-            if (err) console.log("Email couldn't be sent. This is the error: " + err);
-        });
-};
-

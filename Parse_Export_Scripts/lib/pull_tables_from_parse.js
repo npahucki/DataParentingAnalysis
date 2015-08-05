@@ -52,7 +52,7 @@ function checkStatus(){
         env['PARSE_MASTER_KEY'] &&
         env['MAILGUN_KEY']) === 'undefined' ){
         
-        //status = "dont";
+        status = "dont";
     }
     return String(status);
 }
@@ -67,33 +67,25 @@ function main(){
     var promises=[];
     var beginBackup=false;
     if(!(fs.existsSync(pathToBackupDir))){
-        console.log("Could not find backup directory, creating a new one and starting backup")
+        console.log("Could not find backup directory for today, creating a new one and starting backup")
         fs.mkdirSync(pathToBackupDir)
         beginBackup=true
     }
     else{
         console.log("Backup directory exists, checking for files")
-        var files=fs.readdirSync(pathToBackupDir).sort();
-        if(files.length!=0){
-            _.each(files,function(file){
-                if(file.indexOf("~")>-1){
-                    console.log("Files currently being written, wait your turn")
+        if(!tablesReady()){//Wait 20 minutes then try again
+            promises.push(new Parse.Promise())//Ensures that the Promise.when() will not resolve automatically
+            var minutesToWait=30
+            var milliseconds=minutesToWait*60*1000
+            console.log("Trying again in "+minutesToWait+" minutes...")
+            setTimeout(function(){
+                if(tablesReady()){//Proceed with script
+                    promise.resolve()
                 }
-            })
-            var necessaryFiles=[]
-            _.each(tables, function(table){
-                necessaryFiles.push(table+".csv",table+".json") 
-            })
-            if(necessaryFiles.sort().join(',')===files.join(',')){
-                console.log("We have a full pok\xE9dex")
-            }
-            else{
-                console.log("Missing some file")
-            }
-        }
-        else{
-            console.log("Directory is empty :( Begin backup")
-            beginBackup=true
+                else{
+                    promise.reject("Upload failed after second try.")
+                }
+            },milliseconds)
         }
     }
     if(beginBackup){
@@ -127,6 +119,33 @@ function backupTable(table) {
     return retrieveData(table).then(function (fileInfo) {
         return Parse.Promise.when(addFileToResults(fileInfo.jsonFile), addFileToResults(fileInfo.csvFile));
     });
+}
+
+/***
+* checks if all the tables are ready, synchronous
+* @return boolean
+*/
+function tablesReady(){
+    var ready=false;
+    var files=fs.readdirSync(pathToBackupDir).sort();
+    var tables = sqlMapping.tables();
+    var result;
+    var necessaryFiles=[]
+    _.each(tables, function(table){
+        necessaryFiles.push(table+".csv",table+".json") 
+    })
+    if(files.length==0){
+        result="Directory is empty."
+    } else if(files.join(',').indexOf("~")>-1){
+        result="Files currently being written, wait your turn."
+    } else if(necessaryFiles.sort().join(',')===files.join(',')){
+        result="We have a full pok\xE9dex"
+        ready= true
+    } else{
+        result="Missing some file."
+    }
+    console.log(result)
+    return ready
 }
 
 /***

@@ -2,7 +2,7 @@ var pg = require('pg');
 var copyFrom = require('pg-copy-streams').from;
 var fs = require('fs');
 var _ = require('underscore');
-var Parse = require("Parse").Parse;
+//var Parse = require("parse.js").Parse;
 var today = new Date().toISOString().
         replace(/T/, ' ').
         replace(/\..+/, '').
@@ -14,13 +14,18 @@ var pull_tables_from_parse = require('./pull_tables_from_parse.js');
 
 var env = process.env;
 
+/***
+ * Main import function. This wraps the actual import
+ * @return Parse.Promise
+ */
 function main(){
     pull_tables_from_parse.perform().then(function(){
+        var mainPromise=new Parse.Promise();
         var database = "dadsbackups";
         var conString = env['OPENSHIFT_POSTGRESQL_DB_URL'] + '/' + database ;
         var client = new pg.Client(conString);
-        var client = new pg.Client({user: 'adminc5a6jjw', password: 'NGpJUPsxp3s4', host: 'localhost', port: 5432, database: 'dadsbackups'});
-        // var client = new pg.Client({user: 'porta', password: 'porta', host: 'localhost', port: 5432, database: 'dadsbackups'});
+        //Uncomment the following line for local testing
+        //var client = new pg.Client({user: 'adminc5a6jjw', password: 'NGpJUPsxp3s4', host: 'localhost', port: 5432, database: 'dadsbackups'});
         client.connect(function(err) {
             if(err) {
                 return console.error('could not connect to postgres', err);
@@ -57,14 +62,22 @@ function main(){
                     stream.end();
                 });
                 Parse.Promise.when(promises).then(function(){
-                    client.end();
-                    console.log("Script complete!")
+                    var tags_script = fs.readFileSync('./lib/populate_tags.sql').toString();
+                    client.query(tags_script, function(err, result){
+                        if(err){
+                            console.log('error: ', err);
+                            return
+                        }
+                        client.end();
+                        mainPromise.resolve();
+                        console.log("Script complete!");
+                    });
                 },function(err){
-                    
-                })
-                
+                    mainPromise.reject(err);
+                });
             });
         });
+        return mainPromise;
     }, function(err){
         console.log(JSON.stringify(err))
     })
@@ -96,18 +109,19 @@ function checkStatus(){
         env['OPENSHIFT_POSTGRESQL_DB_URL'] &&
         env['MAILGUN_KEY']) === 'undefined' ){
 
-        //status = "dont";
+        status = "dont";
     }
     return String(status);
 }
 
 
 module.exports.perform = function(){
+    var promise=new Parse.Promise();
     if (checkStatus() == "ready"){
-        main();
+        return main();
     }
     else{
-        console.log("Missing env variables, maybe? note that we need these: env['OPENSHIFT_POSTGRESQL_DB_URL'] && env['MAILGUN_KEY']");
+        promise.reject("Missing env variables, maybe? note that we need these: env['OPENSHIFT_POSTGRESQL_DB_URL'] && env['MAILGUN_KEY']");
     }
-    return "Starting backup";
+    return promise;
 }

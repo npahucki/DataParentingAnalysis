@@ -14,7 +14,8 @@ CREATE TABLE installation (
   badge INTEGER,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX installation_id_index ON installation (id);
@@ -33,7 +34,8 @@ CREATE TABLE users(
   lastSeenAt TIMESTAMP,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX user_id_index ON users (id);
@@ -46,7 +48,8 @@ CREATE TABLE babies (
   birthDate TIMESTAMP,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX babies_id_index ON babies (id);
@@ -60,7 +63,8 @@ CREATE TABLE babyAssignedTips (
   assignmentDate TIMESTAMP,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX babyAssignedTips_id_index ON babyAssignedTips (id);
@@ -75,7 +79,8 @@ CREATE TABLE measurements (
   quantity FLOAT,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX measurements_id_index ON measurements (id);
@@ -84,6 +89,7 @@ CREATE INDEX measurements_babyId_index ON measurements (babyId);
 
 CREATE TABLE milestoneAchievements (
   babyId VARCHAR,
+  customTitle VARCHAR,
   standardMilestoneId VARCHAR,
   isPostponed BOOLEAN,
   isSkipped BOOLEAN,
@@ -91,7 +97,8 @@ CREATE TABLE milestoneAchievements (
   completionDays INTEGER,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX milestoneAchievements_id_index ON milestoneAchievements (id);
@@ -110,7 +117,8 @@ CREATE TABLE standardMilestones (
   tag VARCHAR,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX standardMilestones_id_index ON standardMilestones(id);
@@ -127,9 +135,23 @@ CREATE TABLE tips (
   rangeLow INTEGER,
   id VARCHAR,
   createdAt TIMESTAMP,
-  updatedAt TIMESTAMP
+  updatedAt TIMESTAMP,
+  PRIMARY KEY (id)
 );
 
 CREATE INDEX tips_id_index ON tips(id);
 CREATE INDEX tips_relatedMilestoneId_index ON tips(relatedMilestoneId);
 
+CREATE TABLE tags
+(
+id serial NOT NULL,
+tag VARCHAR NOT NULL,
+PRIMARY KEY (id)
+);
+
+CREATE TABLE standardmilestonetags
+(
+standardmilestoneid VARCHAR NOT NULL references standardmilestones(id),
+tagid int NOT NULL references tags(id),
+PRIMARY KEY(standardmilestoneid,tagid)
+);

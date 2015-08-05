@@ -57,6 +57,7 @@ var mapping = {
     'MilestoneAchievements': {
 
         'babyId': 'baby.id',
+        'customTitle' : 'customTitle',
         'standardMilestoneId': 'standardMilestone.id',
         'isPostponed': 'isPostponed',
         'isSkipped': 'isSkipped',

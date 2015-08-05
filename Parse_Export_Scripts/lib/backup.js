@@ -70,7 +70,7 @@ function checkStatus(){
         env['PARSE_MASTER_KEY'] &&
         env['MAILGUN_KEY']) === 'undefined' ){
         
-        //status = "dont";
+        status = "dont";
     }
     return String(status);
 }
