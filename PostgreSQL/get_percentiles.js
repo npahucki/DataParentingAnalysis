@@ -8,11 +8,12 @@ var database = "dadsbackups";
 //var client = new pg.Client(conString);
 var client = new pg.Client({user: 'adminc5a6jjw', password: 'NGpJUPsxp3s4', host: 'localhost', port: 5432, database: 'dadsbackups'});
 var num=0
-var objs=0
-var count=0
+
+
 function getPercentiles(babyId){
-	return "select percentiles_for_baby('"+babyId+"');"
+	return "select * from percentiles_for_baby('"+babyId+"');"
 }
+
 var query=new Parse.Query("Babies")
 client.connect(function(err) {
     if(err) {
@@ -22,33 +23,26 @@ client.connect(function(err) {
     postgresQuery(create_percentile_function).then(function(){
     postgresQuery("select id from babies").then(function(results){
     var babyIds=_.pluck(results.rows,"id")
-    console.log(babyIds)
+    console.log("Got baby id's.  Calculating percentiles...")
     var promises=[]
+    var savePromises=[]
     _.each(babyIds, function(id){
     	promises.push(postgresQuery(getPercentiles(id)).then(function(results){
-	    	var listOfPercentiles=_.pluck(results.rows, "percentiles_for_baby")
-	    	var jsonPercentiles=_.reduce(listOfPercentiles, function(obj,value){
-				var tag=value.split(",")[0].slice(1).replace(/\"/g,"")
-				var percentile=parseInt(value.split(",")[1].slice(0,-1))
-				obj[tag]=percentile
-				return obj
-			},new Object())
+    		//Use _ to parse the data from postgres result to a JSON object
+	    	var jsonPercentiles = _.object(_.pluck(results.rows,'tag'),_.pluck(results.rows,'percentile'))
 			console.log("Processed "+ ++num)
 			if (!_.isEmpty(jsonPercentiles)){
-				console.log(jsonPercentiles)
-				console.log("Getting object "+ ++count)
 				query.get(id).then(function(baby){
-					console.log("Got object "+ ++objs)
-					baby.set("percentiles", jsonPercentiles)
-					//return baby.save();
+					baby.set("percentiles", jsonPercentiles);
+					//savePromises.push(baby.save());
 				},function(err){
 					console.log(err);
 				})
-
 			}
     	}))
     })
     Parse.Promise.when(promises).then(function(){
+    	console.log("Finished querying Postgres")
     	client.end();
     })
     },function(err){
@@ -57,6 +51,7 @@ client.connect(function(err) {
 	});
 })
 
+//Wrapper function for a postgresQuery.  Returns a Parse.Promise
 function postgresQuery(queryString){
 	var promise = new Parse.Promise();
 	client.query(queryString,function(err, result){
